@@ -1,11 +1,16 @@
 #!/usr/bin/env node
 
-const { showBanner } = require('./banner');
-const { getConfig, promptForToken, hasValidConfig } = require('./config');
+const { showBanner, renderScreen } = require('./banner');
+const { getConfig, promptForToken } = require('./config');
 const { selectModel } = require('./selector');
 const { promptOptions } = require('./prompter');
 const { runClaude } = require('./claude');
 const { showLoading } = require('./loading');
+
+const ORANGE = '\x1b[38;5;208m';
+const GREEN = '\x1b[32m';
+const DIM = '\x1b[2m';
+const RESET = '\x1b[0m';
 
 async function main() {
   const args = process.argv.slice(2);
@@ -15,71 +20,75 @@ async function main() {
   let dangerousFlag = false;
 
   for (const arg of args) {
-    if (arg === '--continue' || arg === '-c') {
-      continueFlag = true;
-    }
-    if (arg === '--dangerously-skip-permissions' || arg === '-d') {
-      dangerousFlag = true;
-    }
+    if (arg === '--continue' || arg === '-c') continueFlag = true;
+    if (arg === '--dangerously-skip-permissions' || arg === '-d') dangerousFlag = true;
   }
 
-  // Clear and show banner
-  console.clear();
-  showBanner();
+  // Initial screen
+  renderScreen([]);
 
   // Check/prompt for token
   let config = getConfig();
   if (!config.token) {
-    console.log('');
     const token = await promptForToken();
     config = { ...config, token };
+    renderScreen([{ label: 'Token', value: 'configured' }]);
   }
 
+  const choices = [];
   let model = config.lastModel;
   let shouldContinue = continueFlag;
   let skipPermissions = dangerousFlag;
 
-  // If flags were passed, use them directly
+  // If flags were passed, skip interactive prompts
   if (continueFlag || dangerousFlag) {
-    // If no model saved, must select one
     if (!model) {
-      console.log('');
-      model = await selectModel(null);
+      model = await selectModel(null, choices);
+      choices.push({ label: 'Model', value: model.split('/').pop() });
     }
   } else {
-    // Interactive flow
-    console.log('');
-
-    // If has previous model, ask to keep or change
+    // Step 1: Model selection
     if (config.lastModel) {
+      renderScreen(choices);
       const modelChoice = await promptOptions('Model', [
-        { label: `Same model`, desc: config.lastModel, value: 'same' },
-        { label: 'Change model', desc: 'Select a different model', value: 'change' }
-      ]);
+        { label: 'Same model', desc: config.lastModel.split('/').pop(), value: 'same' },
+        { label: 'Change model', desc: 'Select different', value: 'change' }
+      ], choices);
 
       if (modelChoice === 'change') {
-        model = await selectModel(config.lastModel);
+        choices.push({ label: 'Model', value: '...' });
+        renderScreen(choices);
+        model = await selectModel(config.lastModel, choices);
+        choices[choices.length - 1].value = model.split('/').pop();
+      } else {
+        choices.push({ label: 'Model', value: config.lastModel.split('/').pop() });
       }
     } else {
-      model = await selectModel(null);
+      model = await selectModel(null, choices);
+      choices.push({ label: 'Model', value: model.split('/').pop() });
     }
 
-    // Continue conversation?
-    const continueChoice = await promptOptions('Conversation', [
+    // Step 2: Conversation
+    renderScreen(choices);
+    const continueChoice = await promptOptions('Session', [
       { label: 'New conversation', desc: 'Start fresh', value: 'new' },
-      { label: 'Continue last', desc: 'Resume previous session', value: 'continue' }
-    ]);
+      { label: 'Continue last', desc: 'Resume previous', value: 'continue' }
+    ], choices);
     shouldContinue = continueChoice === 'continue';
+    choices.push({ label: 'Session', value: shouldContinue ? 'continue' : 'new' });
 
-    // Dangerous mode?
+    // Step 3: Permissions
+    renderScreen(choices);
     const dangerousChoice = await promptOptions('Permissions', [
-      { label: 'Normal mode', desc: 'Ask before dangerous actions', value: 'normal' },
-      { label: 'Skip permissions', desc: 'Auto-approve all actions', value: 'dangerous' }
-    ]);
+      { label: 'Normal mode', desc: 'Ask before actions', value: 'normal' },
+      { label: 'Skip permissions', desc: 'Auto-approve all', value: 'dangerous' }
+    ], choices);
     skipPermissions = dangerousChoice === 'dangerous';
+    choices.push({ label: 'Permissions', value: skipPermissions ? 'skip' : 'normal' });
   }
 
-  // Show loading animation
+  // Final screen with loading
+  renderScreen(choices);
   await showLoading();
 
   // Build claude args

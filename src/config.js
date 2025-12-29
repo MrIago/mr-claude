@@ -1,6 +1,12 @@
 const fs = require('fs');
 const path = require('path');
 
+const ORANGE = '\x1b[38;5;208m';
+const GREEN = '\x1b[32m';
+const RESET = '\x1b[0m';
+const HIDE_CURSOR = '\x1b[?25l';
+const SHOW_CURSOR = '\x1b[?25h';
+
 const CONFIG_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.mr-claude');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
@@ -16,9 +22,7 @@ function getConfig() {
       const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
       return JSON.parse(data);
     }
-  } catch (e) {
-    // Ignore errors, return default
-  }
+  } catch (e) {}
   return { token: null, lastModel: null };
 }
 
@@ -28,8 +32,7 @@ function saveConfig(config) {
 }
 
 function hasValidConfig() {
-  const config = getConfig();
-  return !!config.token;
+  return !!getConfig().token;
 }
 
 async function promptForToken() {
@@ -37,7 +40,8 @@ async function promptForToken() {
   const stdout = process.stdout;
 
   return new Promise((resolve) => {
-    stdout.write('\x1b[33m  OpenRouter Token: \x1b[0m');
+    stdout.write(`  ${ORANGE}OpenRouter Token:${RESET} `);
+    stdout.write(HIDE_CURSOR);
 
     let token = '';
     stdin.setRawMode(true);
@@ -48,26 +52,22 @@ async function promptForToken() {
       if (char === '\n' || char === '\r') {
         stdin.setRawMode(false);
         stdin.removeListener('data', onData);
-        console.log(''); // New line
+        stdout.write(SHOW_CURSOR);
+        console.log('');
 
-        // Save token
         const config = getConfig();
         config.token = token;
         saveConfig(config);
 
-        console.log('\x1b[32m  ✓ Token saved securely\x1b[0m');
+        console.log(`  ${GREEN}✓${RESET} Token saved\n`);
         resolve(token);
       } else if (char === '\u0003') {
-        // Ctrl+C
+        stdout.write(SHOW_CURSOR);
         console.log('');
         process.exit();
       } else if (char === '\u007F' || char === '\b') {
-        // Backspace
-        if (token.length > 0) {
-          token = token.slice(0, -1);
-        }
+        if (token.length > 0) token = token.slice(0, -1);
       } else if (char >= ' ') {
-        // Only add printable characters, NO echo at all (silent)
         token += char;
       }
     };

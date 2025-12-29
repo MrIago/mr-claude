@@ -1,70 +1,66 @@
-// Generic options prompter for Yes/No and multiple choice questions
+// Generic options prompter
 
 const ORANGE = '\x1b[38;5;208m';
 const WHITE = '\x1b[97m';
 const DIM = '\x1b[2m';
 const RESET = '\x1b[0m';
 const CYAN = '\x1b[36m';
+const HIDE_CURSOR = '\x1b[?25l';
+const SHOW_CURSOR = '\x1b[?25h';
 
-function renderOptions(title, options, selectedIndex) {
-  // Move cursor up to redraw
-  const linesToClear = options.length + 2;
-  process.stdout.write(`\x1b[${linesToClear}A`);
-
-  console.log(`${DIM}  ${title}${RESET}\n`);
-
-  options.forEach((option, index) => {
-    const isSelected = index === selectedIndex;
-    const prefix = isSelected ? `${ORANGE}❯${RESET}` : ' ';
-    const labelColor = isSelected ? WHITE : DIM;
-    const descColor = isSelected ? CYAN : DIM;
-
-    process.stdout.write('\x1b[2K');
-    console.log(`${prefix} ${labelColor}${option.label}${RESET} ${descColor}(${option.desc})${RESET}`);
-  });
+function clearLines(count) {
+  for (let i = 0; i < count; i++) {
+    process.stdout.write('\x1b[1A\x1b[2K');
+  }
 }
 
-async function promptOptions(title, options) {
-  const stdin = process.stdin;
-  let selectedIndex = 0;
+function renderOptions(title, options, selectedIndex) {
+  let output = `${DIM}  ${title}${RESET}\n\n`;
 
-  // Initial render
-  console.log(`${DIM}  ${title}${RESET}\n`);
   options.forEach((option, index) => {
     const isSelected = index === selectedIndex;
     const prefix = isSelected ? `${ORANGE}❯${RESET}` : ' ';
     const labelColor = isSelected ? WHITE : DIM;
     const descColor = isSelected ? CYAN : DIM;
-    console.log(`${prefix} ${labelColor}${option.label}${RESET} ${descColor}(${option.desc})${RESET}`);
+    output += `${prefix} ${labelColor}${option.label}${RESET} ${descColor}(${option.desc})${RESET}\n`;
   });
+
+  return output;
+}
+
+async function promptOptions(title, options, choices = []) {
+  const stdin = process.stdin;
+  let selectedIndex = 0;
+  const totalLines = options.length + 2;
+
+  process.stdout.write(HIDE_CURSOR);
+  process.stdout.write(renderOptions(title, options, selectedIndex));
 
   return new Promise((resolve) => {
     stdin.setRawMode(true);
     stdin.resume();
     stdin.setEncoding('utf8');
 
-    const onKey = (key) => {
-      // Arrow up
-      if (key === '\x1b[A') {
-        selectedIndex = Math.max(0, selectedIndex - 1);
-        renderOptions(title, options, selectedIndex);
-      }
-      // Arrow down
-      else if (key === '\x1b[B') {
-        selectedIndex = Math.min(options.length - 1, selectedIndex + 1);
-        renderOptions(title, options, selectedIndex);
-      }
-      // Enter
-      else if (key === '\r' || key === '\n') {
-        stdin.setRawMode(false);
-        stdin.removeListener('data', onKey);
+    const cleanup = () => {
+      stdin.setRawMode(false);
+      stdin.removeAllListeners('data');
+      process.stdout.write(SHOW_CURSOR);
+    };
 
-        const selected = options[selectedIndex];
-        console.log(''); // Space after selection
-        resolve(selected.value);
-      }
-      // Ctrl+C
-      else if (key === '\x03') {
+    const onKey = (key) => {
+      if (key === '\x1b[A' && selectedIndex > 0) {
+        selectedIndex--;
+        clearLines(totalLines);
+        process.stdout.write(renderOptions(title, options, selectedIndex));
+      } else if (key === '\x1b[B' && selectedIndex < options.length - 1) {
+        selectedIndex++;
+        clearLines(totalLines);
+        process.stdout.write(renderOptions(title, options, selectedIndex));
+      } else if (key === '\r' || key === '\n') {
+        cleanup();
+        resolve(options[selectedIndex].value);
+      } else if (key === '\x03') {
+        cleanup();
         console.log('\n');
         process.exit();
       }
