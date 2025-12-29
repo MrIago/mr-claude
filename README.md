@@ -3,9 +3,10 @@
 OpenRouter wrapper for Claude Code - Use any model with Claude Code CLI.
 
 ```
-╔╦╗╦═╗ ┌─┐┬  ┌─┐┬ ┬┌┬┐┌─┐
-║║║╠╦╝ │  │  ├─┤│ │ ││├┤
-╩ ╩╩╚═ └─┘┴─┘┴ ┴└─┘─┴┘└─┘
+    ╔╦╗╦═╗ ┌─┐┬  ┌─┐┬ ┬┌┬┐┌─┐
+    ║║║╠╦╝ │  │  ├─┤│ │ ││├┤
+    ╩ ╩╩╚═ └─┘┴─┘┴ ┴└─┘─┴┘└─┘
+   OpenRouter wrapper for Claude Code
 ```
 
 ## Installation
@@ -22,74 +23,82 @@ npm install -g mr-claude
 
 ## Usage
 
-### Interactive Mode
-
-Just run without arguments:
-
 ```bash
 mr-claude
 ```
 
-On first run, you'll be prompted for your OpenRouter token. Then select a model from the interactive menu:
+On first run, you'll be prompted for your OpenRouter token (input is hidden for security).
+
+Then navigate through the interactive menus:
 
 ```
-╔╦╗╦═╗ ┌─┐┬  ┌─┐┬ ┬┌┬┐┌─┐
-║║║╠╦╝ │  │  ├─┤│ │ ││├┤
-╩ ╩╩╚═ └─┘┴─┘┴ ┴└─┘─┴┘└─┘
-
-OpenRouter wrapper for Claude Code
-
-Select model (↑↓ to navigate, Enter to select)
+  Select model (↑↓ navigate, Enter select)
 
 ❯ Claude Opus 4 (Most capable)
   Claude Sonnet 4 (Balanced)
   Claude Haiku 4 (Fast)
   GLM 4.7 (ZhipuAI)
+  Custom model... (Enter model ID manually)
 ```
 
-### Headless Mode
+```
+  Conversation
 
-For scripts, CI/CD, or programmatic use:
+❯ New conversation (Start fresh)
+  Continue last (Resume previous session)
+```
+
+```
+  Permissions
+
+❯ Normal mode (Ask before dangerous actions)
+  Skip permissions (Auto-approve all actions)
+```
+
+### Flags
+
+Skip menus with flags:
 
 ```bash
-# Basic usage
-mr-claude <model> [claude-code args...]
+# Continue last conversation
+mr-claude --continue
+mr-claude -c
 
-# Examples
-mr-claude anthropic/claude-sonnet-4 --help
-mr-claude z-ai/glm-4.7 -p "Hello world"
-mr-claude anthropic/claude-opus-4 --dangerously-skip-permissions
+# Skip permissions (dangerous mode)
+mr-claude --dangerously-skip-permissions
+mr-claude -d
+
+# Combine flags
+mr-claude -c -d
 ```
 
-### With Claude Agent SDK
+## Custom Models
 
-Perfect for sandbox environments:
+Select "Custom model..." to use any OpenRouter model:
 
-```typescript
-import { spawn } from 'child_process';
+```
+❯ Custom model... (Enter model ID manually)
 
-// Run mr-claude as a proxy
-const claude = spawn('mr-claude', ['anthropic/claude-sonnet-4', '-p', prompt], {
-  stdio: 'pipe'
-});
+  ⚠ Models above are tested for Claude Code compatibility.
+    Custom models may have issues with tool use.
+
+  Model ID: openai/gpt-4o
 ```
 
 ## Configuration
 
 Config is stored in `~/.mr-claude/config.json` with secure permissions (600).
 
-### Reset token
-
-Delete the config file to re-enter your token:
+### Reset configuration
 
 ```bash
 rm ~/.mr-claude/config.json
 ```
 
-## Available Models
+## Tested Models
 
-| Model | ID | Description |
-|-------|-----|-------------|
+| Model | ID | Notes |
+|-------|-----|-------|
 | Claude Opus 4 | `anthropic/claude-opus-4` | Most capable |
 | Claude Sonnet 4 | `anthropic/claude-sonnet-4` | Balanced |
 | Claude Haiku 4 | `anthropic/claude-haiku-4` | Fast |
@@ -99,7 +108,7 @@ More models coming soon! PRs welcome.
 
 ## How It Works
 
-`mr-claude` sets these environment variables before spawning Claude Code:
+`mr-claude` sets environment variables before spawning Claude Code:
 
 ```bash
 ANTHROPIC_BASE_URL="https://openrouter.ai/api"
@@ -108,7 +117,7 @@ ANTHROPIC_API_KEY=""
 ANTHROPIC_MODEL="<selected-model>"
 ```
 
-This makes Claude Code use OpenRouter instead of Anthropic's API.
+This routes Claude Code through OpenRouter.
 
 ## License
 

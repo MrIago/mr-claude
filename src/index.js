@@ -1,53 +1,94 @@
 #!/usr/bin/env node
 
 const { showBanner } = require('./banner');
-const { getConfig, promptForToken, hasConfig } = require('./config');
+const { getConfig, promptForToken, hasValidConfig } = require('./config');
 const { selectModel } = require('./selector');
+const { promptOptions } = require('./prompter');
 const { runClaude } = require('./claude');
 const { showLoading } = require('./loading');
 
 async function main() {
   const args = process.argv.slice(2);
 
-  // Headless mode: mr-claude <model> [claude args...]
-  if (args.length > 0 && !args[0].startsWith('-')) {
-    const model = args[0];
-    const claudeArgs = args.slice(1);
+  // Parse flags
+  let continueFlag = false;
+  let dangerousFlag = false;
 
-    // Check for token
-    const config = getConfig();
-    if (!config.token) {
-      console.error('\x1b[31mError: OpenRouter token not configured.\x1b[0m');
-      console.error('Run \x1b[33mmr-claude\x1b[0m without arguments to configure.');
-      process.exit(1);
+  for (const arg of args) {
+    if (arg === '--continue' || arg === '-c') {
+      continueFlag = true;
     }
-
-    // Run claude directly with model
-    runClaude(model, config.token, claudeArgs);
-    return;
+    if (arg === '--dangerously-skip-permissions' || arg === '-d') {
+      dangerousFlag = true;
+    }
   }
 
-  // Interactive mode
+  // Clear and show banner
   console.clear();
   showBanner();
 
   // Check/prompt for token
   let config = getConfig();
   if (!config.token) {
-    console.log('\n\x1b[90mFirst time setup\x1b[0m\n');
+    console.log('');
     const token = await promptForToken();
     config = { ...config, token };
   }
 
-  // Select model
-  console.log('');
-  const model = await selectModel(config.lastModel);
+  let model = config.lastModel;
+  let shouldContinue = continueFlag;
+  let skipPermissions = dangerousFlag;
+
+  // If flags were passed, use them directly
+  if (continueFlag || dangerousFlag) {
+    // If no model saved, must select one
+    if (!model) {
+      console.log('');
+      model = await selectModel(null);
+    }
+  } else {
+    // Interactive flow
+    console.log('');
+
+    // If has previous model, ask to keep or change
+    if (config.lastModel) {
+      const modelChoice = await promptOptions('Model', [
+        { label: `Same model`, desc: config.lastModel, value: 'same' },
+        { label: 'Change model', desc: 'Select a different model', value: 'change' }
+      ]);
+
+      if (modelChoice === 'change') {
+        model = await selectModel(config.lastModel);
+      }
+    } else {
+      model = await selectModel(null);
+    }
+
+    // Continue conversation?
+    const continueChoice = await promptOptions('Conversation', [
+      { label: 'New conversation', desc: 'Start fresh', value: 'new' },
+      { label: 'Continue last', desc: 'Resume previous session', value: 'continue' }
+    ]);
+    shouldContinue = continueChoice === 'continue';
+
+    // Dangerous mode?
+    const dangerousChoice = await promptOptions('Permissions', [
+      { label: 'Normal mode', desc: 'Ask before dangerous actions', value: 'normal' },
+      { label: 'Skip permissions', desc: 'Auto-approve all actions', value: 'dangerous' }
+    ]);
+    skipPermissions = dangerousChoice === 'dangerous';
+  }
 
   // Show loading animation
   await showLoading();
 
+  // Build claude args
+  const claudeArgs = [];
+  if (shouldContinue) claudeArgs.push('--continue');
+  if (skipPermissions) claudeArgs.push('--dangerously-skip-permissions');
+
   // Run Claude
-  runClaude(model, config.token, args);
+  runClaude(model, config.token, claudeArgs);
 }
 
 main().catch(err => {

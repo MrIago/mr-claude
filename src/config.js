@@ -1,6 +1,5 @@
 const fs = require('fs');
 const path = require('path');
-const readline = require('readline');
 
 const CONFIG_DIR = path.join(process.env.HOME || process.env.USERPROFILE, '.mr-claude');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
@@ -28,23 +27,17 @@ function saveConfig(config) {
   fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o600 });
 }
 
-function hasConfig() {
+function hasValidConfig() {
   const config = getConfig();
   return !!config.token;
 }
 
 async function promptForToken() {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
+  const stdin = process.stdin;
+  const stdout = process.stdout;
 
   return new Promise((resolve) => {
-    // Hide input for security
-    const stdin = process.stdin;
-    const stdout = process.stdout;
-
-    stdout.write('\x1b[33mOpenRouter Token:\x1b[0m ');
+    stdout.write('\x1b[33m  OpenRouter Token: \x1b[0m');
 
     let token = '';
     stdin.setRawMode(true);
@@ -55,28 +48,27 @@ async function promptForToken() {
       if (char === '\n' || char === '\r') {
         stdin.setRawMode(false);
         stdin.removeListener('data', onData);
-        rl.close();
-        console.log('');
+        console.log(''); // New line
 
         // Save token
         const config = getConfig();
         config.token = token;
         saveConfig(config);
 
-        console.log('\x1b[32m✓ Token saved securely\x1b[0m');
+        console.log('\x1b[32m  ✓ Token saved securely\x1b[0m');
         resolve(token);
       } else if (char === '\u0003') {
         // Ctrl+C
+        console.log('');
         process.exit();
-      } else if (char === '\u007F') {
+      } else if (char === '\u007F' || char === '\b') {
         // Backspace
         if (token.length > 0) {
           token = token.slice(0, -1);
-          stdout.write('\b \b');
         }
-      } else {
+      } else if (char >= ' ') {
+        // Only add printable characters, NO echo at all (silent)
         token += char;
-        stdout.write('*');
       }
     };
 
@@ -90,4 +82,4 @@ function updateLastModel(model) {
   saveConfig(config);
 }
 
-module.exports = { getConfig, saveConfig, hasConfig, promptForToken, updateLastModel };
+module.exports = { getConfig, saveConfig, hasValidConfig, promptForToken, updateLastModel };
