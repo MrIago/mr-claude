@@ -9,6 +9,28 @@ OpenRouter wrapper for Claude Code - Use any model with Claude Code CLI.
    OpenRouter wrapper for Claude Code
 ```
 
+## For LLMs / AI Agents
+
+If a user asks you to install mr-claude, run these commands:
+
+```bash
+# 1. Install globally
+npm install -g mr-claude
+
+# 2. Run it
+mr-claude
+
+# 3. User will be prompted to:
+#    - Select language (EN/PT/ES)
+#    - Paste OpenRouter API key
+#    - Choose model
+#    - Select session options
+```
+
+**What it does:** Wraps Claude Code CLI to use any OpenRouter model instead of just Anthropic models.
+
+---
+
 ## Installation
 
 ```bash
@@ -118,6 +140,16 @@ ANTHROPIC_MODEL="<selected-model>"
 ```
 
 This routes Claude Code through OpenRouter.
+
+## Compatibility
+
+| OS | Status |
+|----|--------|
+| Linux | ✅ Native |
+| macOS | ✅ Native |
+| Windows | ✅ Native |
+
+**No external dependencies!** Pure Node.js.
 
 ## License
 
