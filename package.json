@@ -1,0 +1,40 @@
+{
+  "name": "mr-claude",
+  "version": "1.0.0",
+  "description": "OpenRouter wrapper for Claude Code - Use any model with Claude Code CLI",
+  "main": "src/index.js",
+  "bin": {
+    "mr-claude": "./src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "openrouter",
+    "ai",
+    "cli",
+    "anthropic",
+    "llm"
+  ],
+  "author": "MrIago <mriago@users.noreply.github.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MrIago/mr-claude.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MrIago/mr-claude/issues"
+  },
+  "homepage": "https://github.com/MrIago/mr-claude#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "src/**/*",
+    "README.md",
+    "LICENSE"
+  ]
+}
