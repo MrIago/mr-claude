@@ -1,5 +1,6 @@
 const { spawn } = require('child_process');
 const path = require('path');
+const { t } = require('./i18n');
 
 function findClaude() {
   // Try common locations
@@ -42,8 +43,8 @@ function runClaude(model, token, args = []) {
 
   claude.on('error', (err) => {
     if (err.code === 'ENOENT') {
-      console.error('\x1b[31mError: Claude Code not found.\x1b[0m');
-      console.error('Install it with: npm install -g @anthropic-ai/claude-code');
+      console.error(`\x1b[31mError: ${t('errorClaudeNotFound')}\x1b[0m`);
+      console.error(t('installWith'));
       process.exit(1);
     }
     throw err;

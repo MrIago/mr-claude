@@ -1,5 +1,7 @@
 // ASCII Banner with colors and screen rendering
 
+const { t } = require('./i18n');
+
 const WHITE = '\x1b[97m';
 const ORANGE = '\x1b[38;5;208m';
 const GREEN = '\x1b[32m';
@@ -23,7 +25,7 @@ function getBanner() {
     const line = `${WHITE}${mr[i]}${RESET}${ORANGE}${claude[i]}${RESET}`;
     output += centerText(line, MENU_WIDTH) + '\n';
   }
-  output += '\n' + centerText(`${DIM}OpenRouter wrapper for Claude Code${RESET}`, MENU_WIDTH) + '\n';
+  output += '\n' + centerText(`${DIM}${t('tagline')}${RESET}`, MENU_WIDTH) + '\n';
   return output;
 }
 

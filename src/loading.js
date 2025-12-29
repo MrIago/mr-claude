@@ -1,3 +1,5 @@
+const { t } = require('./i18n');
+
 const ORANGE = '\x1b[38;5;208m';
 const DIM = '\x1b[2m';
 const RESET = '\x1b[0m';
@@ -9,14 +11,15 @@ const frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '
 async function showLoading(duration = 800) {
   const startTime = Date.now();
   let frameIndex = 0;
+  const message = t('startingClaude');
 
   process.stdout.write(HIDE_CURSOR);
-  process.stdout.write(`  ${ORANGE}${frames[0]}${RESET} ${DIM}Starting Claude...${RESET}`);
+  process.stdout.write(`  ${ORANGE}${frames[0]}${RESET} ${DIM}${message}${RESET}`);
 
   return new Promise((resolve) => {
     const interval = setInterval(() => {
       frameIndex = (frameIndex + 1) % frames.length;
-      process.stdout.write(`\r  ${ORANGE}${frames[frameIndex]}${RESET} ${DIM}Starting Claude...${RESET}`);
+      process.stdout.write(`\r  ${ORANGE}${frames[frameIndex]}${RESET} ${DIM}${message}${RESET}`);
 
       if (Date.now() - startTime >= duration) {
         clearInterval(interval);

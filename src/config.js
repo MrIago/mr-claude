@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { t } = require('./i18n');
 
 const ORANGE = '\x1b[38;5;208m';
 const GREEN = '\x1b[32m';
@@ -23,7 +24,15 @@ function getConfig() {
       return JSON.parse(data);
     }
   } catch (e) {}
-  return { token: null, lastModel: null };
+  return { token: null, lastModel: null, language: null };
+}
+
+function resetConfig() {
+  try {
+    if (fs.existsSync(CONFIG_FILE)) {
+      fs.unlinkSync(CONFIG_FILE);
+    }
+  } catch (e) {}
 }
 
 function saveConfig(config) {
@@ -40,34 +49,47 @@ async function promptForToken() {
   const stdout = process.stdout;
 
   return new Promise((resolve) => {
-    stdout.write(`  ${ORANGE}OpenRouter Token:${RESET} `);
-    stdout.write(HIDE_CURSOR);
+    stdout.write(`  ${ORANGE}${t('openrouterToken')}${RESET} `);
+    stdout.write(SHOW_CURSOR);
 
     let token = '';
     stdin.setRawMode(true);
     stdin.resume();
     stdin.setEncoding('utf8');
 
+    const cleanup = () => {
+      if (stdin.isTTY) {
+        stdin.setRawMode(false);
+      }
+      stdin.removeListener('data', onData);
+      stdin.pause();
+      stdout.write(SHOW_CURSOR);
+    };
+
     const onData = (char) => {
       if (char === '\n' || char === '\r') {
-        stdin.setRawMode(false);
-        stdin.removeListener('data', onData);
-        stdout.write(SHOW_CURSOR);
+        cleanup();
         console.log('');
 
-        const config = getConfig();
-        config.token = token;
-        saveConfig(config);
-
-        console.log(`  ${GREEN}✓${RESET} Token saved\n`);
-        resolve(token);
+        if (token) {
+          const config = getConfig();
+          config.token = token;
+          saveConfig(config);
+          console.log(`  ${GREEN}✓${RESET} ${t('tokenSaved')}\n`);
+        }
+        resolve(token || null);
+      } else if (char === '\x1b' && char.length === 1) {
+        // ESC - go back
+        cleanup();
+        stdout.write('\r\x1b[2K');
+        resolve(null);
       } else if (char === '\u0003') {
-        stdout.write(SHOW_CURSOR);
+        cleanup();
         console.log('');
         process.exit();
       } else if (char === '\u007F' || char === '\b') {
         if (token.length > 0) token = token.slice(0, -1);
-      } else if (char >= ' ') {
+      } else if (char >= ' ' && !char.startsWith('\x1b')) {
         token += char;
       }
     };
@@ -82,4 +104,10 @@ function updateLastModel(model) {
   saveConfig(config);
 }
 
-module.exports = { getConfig, saveConfig, hasValidConfig, promptForToken, updateLastModel };
+function updateLanguage(language) {
+  const config = getConfig();
+  config.language = language;
+  saveConfig(config);
+}
+
+module.exports = { getConfig, saveConfig, hasValidConfig, promptForToken, updateLastModel, updateLanguage, resetConfig };

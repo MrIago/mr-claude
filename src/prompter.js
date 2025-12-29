@@ -42,8 +42,11 @@ async function promptOptions(title, options, choices = []) {
     stdin.setEncoding('utf8');
 
     const cleanup = () => {
-      stdin.setRawMode(false);
+      if (stdin.isTTY) {
+        stdin.setRawMode(false);
+      }
       stdin.removeAllListeners('data');
+      stdin.pause();
       process.stdout.write(SHOW_CURSOR);
     };
 
@@ -59,6 +62,10 @@ async function promptOptions(title, options, choices = []) {
       } else if (key === '\r' || key === '\n') {
         cleanup();
         resolve(options[selectedIndex].value);
+      } else if (key === '\x1b' && key.length === 1) {
+        // ESC key pressed (go back)
+        cleanup();
+        resolve(null);
       } else if (key === '\x03') {
         cleanup();
         console.log('\n');

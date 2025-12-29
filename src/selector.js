@@ -1,6 +1,7 @@
 const readline = require('readline');
 const { updateLastModel } = require('./config');
 const { renderScreen } = require('./banner');
+const { t } = require('./i18n');
 
 const ORANGE = '\x1b[38;5;208m';
 const WHITE = '\x1b[97m';
@@ -11,15 +12,19 @@ const YELLOW = '\x1b[33m';
 const HIDE_CURSOR = '\x1b[?25l';
 const SHOW_CURSOR = '\x1b[?25h';
 
-const MODELS = [
-  { id: 'anthropic/claude-opus-4', name: 'Claude Opus 4', desc: 'Most capable' },
-  { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', desc: 'Balanced' },
-  { id: 'anthropic/claude-haiku-4', name: 'Claude Haiku 4', desc: 'Fast' },
-  { id: 'z-ai/glm-4.7', name: 'GLM 4.7', desc: 'ZhipuAI' },
-  { id: 'custom', name: 'Custom model...', desc: 'Enter manually' },
-];
+function getModels() {
+  return [
+    { id: 'anthropic/claude-opus-4', name: 'Claude Opus 4', desc: t('mostCapable') },
+    { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', desc: t('balanced') },
+    { id: 'anthropic/claude-haiku-4', name: 'Claude Haiku 4', desc: t('fast') },
+    { id: 'z-ai/glm-4.7', name: 'GLM 4.7', desc: 'ZhipuAI' },
+    { id: 'custom', name: t('customModel'), desc: t('enterManually') },
+  ];
+}
 
-const WARNING = `${YELLOW}  ⚠ Models above are tested. Custom may have issues.${RESET}`;
+function getWarning() {
+  return `${YELLOW}  ${t('modelWarning')}${RESET}`;
+}
 
 function clearLines(count) {
   for (let i = 0; i < count; i++) {
@@ -28,7 +33,7 @@ function clearLines(count) {
 }
 
 function renderModels(models, selectedIndex, showWarning) {
-  let output = `${DIM}  Select model (↑↓ navigate, Enter select)${RESET}\n\n`;
+  let output = `${DIM}  ${t('selectModel')} (${t('navigate')}, Enter ${t('select')})${RESET}\n\n`;
 
   models.forEach((model, index) => {
     const isSelected = index === selectedIndex;
@@ -39,7 +44,7 @@ function renderModels(models, selectedIndex, showWarning) {
   });
 
   if (showWarning) {
-    output += '\n' + WARNING + '\n';
+    output += '\n' + getWarning() + '\n';
   } else {
     output += '\n\n';
   }
@@ -48,23 +53,58 @@ function renderModels(models, selectedIndex, showWarning) {
 }
 
 async function promptCustomModel() {
-  process.stdout.write(SHOW_CURSOR);
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
+  const stdin = process.stdin;
+  const stdout = process.stdout;
 
   return new Promise((resolve) => {
-    rl.question(`${ORANGE}  Model ID: ${RESET}`, (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
+    stdout.write(`${ORANGE}  ${t('modelId')} ${RESET}`);
+    stdout.write(SHOW_CURSOR);
+
+    let input = '';
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.setEncoding('utf8');
+
+    const cleanup = () => {
+      if (stdin.isTTY) {
+        stdin.setRawMode(false);
+      }
+      stdin.removeAllListeners('data');
+      stdin.pause();
+    };
+
+    const onData = (char) => {
+      if (char === '\r' || char === '\n') {
+        cleanup();
+        console.log('');
+        resolve(input.trim() || null);
+      } else if (char === '\x1b' && char.length === 1) {
+        // ESC - go back
+        cleanup();
+        stdout.write('\r\x1b[2K');
+        resolve(null);
+      } else if (char === '\x03') {
+        cleanup();
+        console.log('');
+        process.exit();
+      } else if (char === '\u007F' || char === '\b') {
+        if (input.length > 0) {
+          input = input.slice(0, -1);
+          stdout.write('\b \b');
+        }
+      } else if (char >= ' ' && !char.startsWith('\x1b')) {
+        input += char;
+        stdout.write(char);
+      }
+    };
+
+    stdin.on('data', onData);
   });
 }
 
 async function selectModel(lastModel, choices = []) {
   const stdin = process.stdin;
+  const MODELS = getModels();
 
   let selectedIndex = 0;
   if (lastModel) {
@@ -84,8 +124,11 @@ async function selectModel(lastModel, choices = []) {
     stdin.setEncoding('utf8');
 
     const cleanup = () => {
-      stdin.setRawMode(false);
+      if (stdin.isTTY) {
+        stdin.setRawMode(false);
+      }
       stdin.removeAllListeners('data');
+      stdin.pause();
       process.stdout.write(SHOW_CURSOR);
     };
 
@@ -110,13 +153,17 @@ async function selectModel(lastModel, choices = []) {
             updateLastModel(customModel);
             resolve(customModel);
           } else {
-            updateLastModel(MODELS[0].id);
-            resolve(MODELS[0].id);
+            // User pressed ESC or empty input - go back to model selection
+            resolve(null);
           }
         } else {
           updateLastModel(selected.id);
           resolve(selected.id);
         }
+      } else if (key === '\x1b' && key.length === 1) {
+        // ESC key pressed (go back)
+        cleanup();
+        resolve(null);
       } else if (key === '\x03') {
         cleanup();
         console.log('\n');
@@ -128,4 +175,4 @@ async function selectModel(lastModel, choices = []) {
   });
 }
 
-module.exports = { selectModel, MODELS };
+module.exports = { selectModel, getModels };
